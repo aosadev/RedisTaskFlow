@@ -11,6 +11,7 @@ const router = express.Router();
 const {
   createPriority,
   getAllPriorities,
+  getPriorityById,
   updatePriority,
   deletePriority
 } = require('../controllers/priorityController');
@@ -20,6 +21,9 @@ router.post('/', createPriority);
 
 // Obtener todas las prioridades
 router.get('/', getAllPriorities);
+
+// Obtener prioridad por ID
+router.get('/:id', getPriorityById);
 
 // Actualizar una prioridad por ID
 router.put('/:id', updatePriority);

@@ -88,6 +88,42 @@ const getAllPriorities = async (req, res) => {
   }
 };
 
+
+/**
+ * getPriorityById
+ * ---------------
+ * Dado un ID de prioridad, obtiene los campos almacenados en Redis
+ * y los devuelve en formato JSON. Responde con 404 si no existe.
+ */
+const getPriorityById = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const key = `priority:${id}`;
+  
+      // Obtener el Hash de Redis
+      const data = await client.hGetAll(key);
+  
+      // Si no hay 'data.id', significa que no existe
+      if (!data || !data.id) {
+        return res.status(404).json({ message: 'Prioridad no encontrada' });
+      }
+  
+      // Convertir 'order' a número
+      const priority = {
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        order: parseInt(data.order, 10) // parseo a number
+      };
+  
+      res.json(priority);
+    } catch (error) {
+      console.error('[getPriorityById] Error:', error);
+      res.status(500).json({ message: 'Error al obtener prioridad', error });
+    }
+  };
+  
+
 /**
  * Actualiza los campos de una prioridad existente
  * @param {Object} req - Solicitud Express con param { id } y body { name, color, order }
@@ -155,6 +191,7 @@ const deletePriority = async (req, res) => {
 module.exports = {
   createPriority,
   getAllPriorities,
+  getPriorityById,
   updatePriority,
   deletePriority
 };
