@@ -1,4 +1,9 @@
 require('dotenv').config();
+const { connectRedis } = require('./config/redis');
+const app = express();
+
+// Conectar a Redis
+connectRedis();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
