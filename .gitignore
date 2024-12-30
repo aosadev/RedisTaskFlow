@@ -1,0 +1,36 @@
+# Node modules
+node_modules/
+
+# Archivos de entorno
+.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cobertura de tests
+coverage/
+.nyc_output/
+
+# Carpetas de build o distribución
+build/
+dist/
+
+# Caché de servidores locales (PM2, etc.)
+.pids
+*.pid
+*.seed
+
+# Configuración de editores/IDE
+.vscode/
+.idea/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Paquete lock (opcional, solo si deseas ignorarlo; en muchos proyectos sí se commite)
+# package-lock.json
+# yarn.lock
