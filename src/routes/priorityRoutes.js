@@ -16,19 +16,19 @@ const {
   deletePriority
 } = require('../controllers/priorityController');
 
-// Crear una prioridad nueva
+// POST /api/priorities
 router.post('/', createPriority);
 
-// Obtener todas las prioridades
+// GET /api/priorities
 router.get('/', getAllPriorities);
 
-// Obtener prioridad por ID
+// GET /api/priorities/:id
 router.get('/:id', getPriorityById);
 
-// Actualizar una prioridad por ID
+// PUT /api/priorities/:id
 router.put('/:id', updatePriority);
 
-// Eliminar una prioridad por ID
+// DELETE /api/priorities/:id
 router.delete('/:id', deletePriority);
 
 module.exports = router;

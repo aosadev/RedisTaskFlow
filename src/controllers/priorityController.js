@@ -4,10 +4,15 @@
  * Maneja la lógica para crear, listar, actualizar y eliminar registros
  * de tipo "Prioridad" en Redis. Cada prioridad se almacena como un Hash:
  *   priority:{id} => { id, name, color, order }
- * Además, se utiliza un contador (priorityIdCounter) para autogenerar IDs.
+ *
+ * Además, se utiliza un contador (priorityIdCounter) para autogenerar IDs,
+ * y un Set (priorityIdsSet) para poder listar todas las prioridades sin usar SCAN.
  */
 
 const { client } = require('../config/redis');
+
+// Nombre del set para almacenar las claves de cada prioridad
+const PRIORITY_SET = 'priorityIdsSet';
 
 /**
  * Crea una nueva prioridad en Redis
@@ -34,6 +39,9 @@ const createPriority = async (req, res) => {
       order: order.toString()
     });
 
+    // Añadimos la clave al set para poder listar luego
+    await client.sAdd(PRIORITY_SET, `priority:${newPriorityId}`);
+
     // Responder con la prioridad creada
     res.status(201).json({
       id: newPriorityId,
@@ -42,6 +50,7 @@ const createPriority = async (req, res) => {
       order
     });
   } catch (error) {
+    console.error('[createPriority] Error:', error);
     res.status(500).json({ message: 'Error al crear prioridad', error });
   }
 };
@@ -53,80 +62,71 @@ const createPriority = async (req, res) => {
  */
 const getAllPriorities = async (req, res) => {
   try {
+    // 1) Obtener las claves del set (p.ej. ["priority:1", "priority:2", ...])
+    const keys = await client.sMembers(PRIORITY_SET); // Retorna array de strings
     const priorities = [];
-    let cursor = '0';
 
-    // Usamos SCAN para iterar sobre todas las keys que coincidan con 'priority:*'
-    // En un proyecto grande, podrías usar un Set con IDs de prioridad en vez de SCAN.
-    do {
-      const reply = await client.scan(cursor, {
-        MATCH: 'priority:*',
-        COUNT: 50
-      });
-      cursor = reply.cursor;
-
-      // Para cada key que coincida (p.ej. "priority:1"), obtenemos el Hash
-      for (const key of reply.keys) {
-        const data = await client.hGetAll(key);
-        if (data && data.id) {
-          priorities.push({
-            id: data.id,
-            name: data.name,
-            color: data.color,
-            order: parseInt(data.order, 10)
-          });
-        }
+    // 2) Para cada clave, obtenemos el Hash de Redis
+    for (const key of keys) {
+      const data = await client.hGetAll(key);
+      // data es un objeto { id, name, color, order: '...' }
+      if (data && data.id) {
+        priorities.push({
+          id: data.id,
+          name: data.name,
+          color: data.color,
+          order: parseInt(data.order, 10) // Convertimos a número
+        });
       }
-    } while (cursor !== '0');
+    }
 
-    // Ordenamos por 'order' antes de responder
+    // 3) Ordenar las prioridades por 'order' ascendente (opcional)
     priorities.sort((a, b) => a.order - b.order);
 
+    // 4) Responder
     res.json(priorities);
   } catch (error) {
+    console.error('[getAllPriorities] Error:', error);
     res.status(500).json({ message: 'Error al obtener prioridades', error });
   }
 };
 
-
 /**
- * getPriorityById
- * ---------------
- * Dado un ID de prioridad, obtiene los campos almacenados en Redis
- * y los devuelve en formato JSON. Responde con 404 si no existe.
+ * Obtiene una prioridad por ID
+ * @param {Object} req - Solicitud Express con param { id }
+ * @param {Object} res - Respuesta Express con la prioridad o 404 si no existe
  */
 const getPriorityById = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const key = `priority:${id}`;
-  
-      // Obtener el Hash de Redis
-      const data = await client.hGetAll(key);
-  
-      // Si no hay 'data.id', significa que no existe
-      if (!data || !data.id) {
-        return res.status(404).json({ message: 'Prioridad no encontrada' });
-      }
-  
-      // Convertir 'order' a número
-      const priority = {
-        id: data.id,
-        name: data.name,
-        color: data.color,
-        order: parseInt(data.order, 10) // parseo a number
-      };
-  
-      res.json(priority);
-    } catch (error) {
-      console.error('[getPriorityById] Error:', error);
-      res.status(500).json({ message: 'Error al obtener prioridad', error });
+  try {
+    const { id } = req.params;
+    const key = `priority:${id}`;
+
+    // Obtener el Hash de Redis
+    const data = await client.hGetAll(key);
+
+    // Si no hay 'data.id', significa que no existe
+    if (!data || !data.id) {
+      return res.status(404).json({ message: 'Prioridad no encontrada' });
     }
-  };
-  
+
+    // Convertir 'order' a número
+    const priority = {
+      id: data.id,
+      name: data.name,
+      color: data.color,
+      order: parseInt(data.order, 10)
+    };
+
+    res.json(priority);
+  } catch (error) {
+    console.error('[getPriorityById] Error:', error);
+    res.status(500).json({ message: 'Error al obtener prioridad', error });
+  }
+};
 
 /**
- * Actualiza los campos de una prioridad existente
- * @param {Object} req - Solicitud Express con param { id } y body { name, color, order }
+ * Actualiza una prioridad en Redis
+ * @param {Object} req - Solicitud Express con param { id }, body { name, color, order }
  * @param {Object} res - Respuesta Express con la prioridad actualizada
  */
 const updatePriority = async (req, res) => {
@@ -135,31 +135,27 @@ const updatePriority = async (req, res) => {
     const { name, color, order } = req.body;
 
     // Verificar si existe la prioridad en Redis
-    const priorityData = await client.hGetAll(`priority:${id}`);
-    if (!priorityData || !priorityData.id) {
+    const key = `priority:${id}`;
+    const existing = await client.hGetAll(key);
+    if (!existing || !existing.id) {
       return res.status(404).json({ message: 'Prioridad no encontrada' });
     }
 
-    // Actualizar solo los campos que se incluyan en el request
-    if (name !== undefined) {
-      await client.hSet(`priority:${id}`, 'name', name);
-    }
-    if (color !== undefined) {
-      await client.hSet(`priority:${id}`, 'color', color);
-    }
-    if (order !== undefined) {
-      await client.hSet(`priority:${id}`, 'order', order.toString());
-    }
+    // Actualizar sólo los campos provistos
+    if (name !== undefined) await client.hSet(key, 'name', name);
+    if (color !== undefined) await client.hSet(key, 'color', color);
+    if (order !== undefined) await client.hSet(key, 'order', order.toString());
 
-    // Obtenemos los datos actualizados
-    const updatedData = await client.hGetAll(`priority:${id}`);
+    // Obtener la data actualizada
+    const updated = await client.hGetAll(key);
     res.json({
-      id: updatedData.id,
-      name: updatedData.name,
-      color: updatedData.color,
-      order: parseInt(updatedData.order, 10)
+      id: updated.id,
+      name: updated.name,
+      color: updated.color,
+      order: parseInt(updated.order, 10)
     });
   } catch (error) {
+    console.error('[updatePriority] Error:', error);
     res.status(500).json({ message: 'Error al actualizar prioridad', error });
   }
 };
@@ -172,18 +168,23 @@ const updatePriority = async (req, res) => {
 const deletePriority = async (req, res) => {
   try {
     const { id } = req.params;
+    const key = `priority:${id}`;
 
     // Verificar si la prioridad existe
-    const priorityData = await client.hGetAll(`priority:${id}`);
-    if (!priorityData || !priorityData.id) {
+    const data = await client.hGetAll(key);
+    if (!data || !data.id) {
       return res.status(404).json({ message: 'Prioridad no encontrada' });
     }
 
     // Eliminar la key de Redis
-    await client.del(`priority:${id}`);
+    await client.del(key);
+
+    // Quitamos la clave del set para que no aparezca en la lista
+    await client.sRem(PRIORITY_SET, key);
 
     res.json({ message: 'Prioridad eliminada correctamente' });
   } catch (error) {
+    console.error('[deletePriority] Error:', error);
     res.status(500).json({ message: 'Error al eliminar prioridad', error });
   }
 };
