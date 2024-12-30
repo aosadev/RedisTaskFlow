@@ -1,4 +1,6 @@
 require('dotenv').config();
+const express = require('express');
+
 const { connectRedis } = require('./config/redis');
 const app = express();
 

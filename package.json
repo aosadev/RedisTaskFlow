@@ -25,5 +25,13 @@
   },
   "jest": {
     "testEnvironment": "node"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aosadev/RedisTaskFlow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aosadev/RedisTaskFlow/issues"
+  },
+  "homepage": "https://github.com/aosadev/RedisTaskFlow#readme"
 }
