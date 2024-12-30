@@ -7,6 +7,7 @@ const app = express();
 //Importar rutas
 const userRoutes = require('./routes/userRoutes'); 
 const priorityRoutes = require('./routes/priorityRoutes');
+const tagRoutes = require('./routes/tagRoutes');
 
 
 
@@ -17,6 +18,7 @@ app.use(express.json());
 // Rutas
 app.use('/api/users', userRoutes);
 app.use('/api/priorities', priorityRoutes);
+app.use('/api/tags', tagRoutes);
 
 // Conectar a Redis
 connectRedis();
