@@ -8,6 +8,7 @@ const app = express();
 const userRoutes = require('./routes/userRoutes'); 
 const priorityRoutes = require('./routes/priorityRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/priorities', priorityRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Conectar a Redis
 connectRedis();
