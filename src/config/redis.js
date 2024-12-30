@@ -1,9 +1,17 @@
+// src/config/redis.js
 require('dotenv').config();
-const { createClient } = require('redis');
 
-let client = createClient({
-  url: process.env.REDIS_URL
-});
+let client;
+
+if (process.env.NODE_ENV === 'test') {
+  // Usar el mock
+  const mockRedis = require('../../tests/config/redis.mock');
+  client = mockRedis.createClient();
+} else {
+  // Usar Redis real
+  const { createClient } = require('redis');
+  client = createClient({ url: process.env.REDIS_URL });
+}
 
 client.on('error', (err) => {
   console.error('Redis Client Error:', err);
